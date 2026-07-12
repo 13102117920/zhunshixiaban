@@ -2,17 +2,16 @@
 // 环境变量：GH_TOKEN（有 repo 权限）、GH_REPO（owner/name）、GH_BRANCH
 // 降级：无 GH_TOKEN 时内存态（数据不持久）
 
-const GH_TOKEN = process.env.GH_TOKEN || '';
 const GH_REPO = process.env.GH_REPO || '13102117920/zhunshixiaban';
 const GH_BRANCH = process.env.GH_BRANCH || 'master';
-const HAS_GH = !!GH_TOKEN;
 const DATA_PATH = 'data.json';
+function hasGH() { return !!process.env.GH_TOKEN; }
 
 async function ghApi(method, path, body) {
   const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`, {
     method,
     headers: {
-      Authorization: `Bearer ${GH_TOKEN}`,
+      Authorization: `Bearer ${process.env.GH_TOKEN}`,
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
       'User-Agent': 'zhunshi-bot'
@@ -23,21 +22,22 @@ async function ghApi(method, path, body) {
 }
 
 async function readData() {
-  if (!HAS_GH) return memStore;
+  if (!hasGH()) return memStore;
   try {
     const res = await ghApi('GET', DATA_PATH);
     if (res.status === 404) return { users: [], jobs: [], apps: [], favs: [], seeded: false, seq: 0 };
     if (!res.ok) throw new Error('read ' + res.status);
     const meta = await res.json();
-    const content = JSON.parse(Buffer.from(meta.content, 'base64').toString('utf8'));
+    const content = JSON.parse(Buffer.from(meta.content.replace(/\s/g, ''), 'base64').toString('utf8'));
     return content;
   } catch (e) {
+    console.error('readData err', e.message);
     return { users: [], jobs: [], apps: [], favs: [], seeded: false, seq: 0 };
   }
 }
 
 async function writeData(data) {
-  if (!HAS_GH) { memStore = data; return; }
+  if (!hasGH()) { memStore = data; return; }
   // 取当前文件 sha（更新用）
   let sha = undefined;
   const cur = await ghApi('GET', DATA_PATH);
@@ -67,7 +67,7 @@ async function withWrite(fn) {
 }
 
 export const db = {
-  get HAS_GH() { return HAS_GH; },
+  get HAS_GH() { return hasGH(); },
   async getUsers() { const d = await readData(); return d.users; },
   async saveUsers(u) { await withWrite(d => { d.users = u; }); },
   async getJobs() { const d = await readData(); return d.jobs; },
