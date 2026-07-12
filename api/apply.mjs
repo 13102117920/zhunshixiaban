@@ -14,7 +14,7 @@ function decodeToken(token) {
 }
 
 export default async function handler(req) {
-  const url = new URL(req.url);
+  const url = new URL(req.url, 'http://localhost');
   const action = url.searchParams.get('action') || 'apply';
   const token = req.headers.get('authorization') || '';
   const phone = decodeToken(token);

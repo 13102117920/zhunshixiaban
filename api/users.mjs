@@ -11,7 +11,7 @@ function err(msg, code = 400) { return new Response(JSON.stringify({ ok: false, 
 const SECRET = 'zsyx-sign-v1';
 
 export default async function handler(req) {
-  const url = new URL(req.url);
+  const url = new URL(req.url, 'http://localhost');
   const action = url.searchParams.get('action');
   let body = {};
   try { body = await req.json(); } catch (e) {}
