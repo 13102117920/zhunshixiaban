@@ -1,18 +1,31 @@
-// 共享数据层：Vercel KV（Redis REST）封装
-// 绑定 KV 后 Vercel 自动注入 KV_REST_API_URL / KV_REST_API_TOKEN
-import { kv } from '@vercel/kv';
+// 共享数据层：Vercel KV（Redis REST）封装 —— 惰性初始化，无 KV 时内存降级
+let kvClient = null;
+let HAS_KV = false;
 
-const HAS_KV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+async function getKv() {
+  if (kvClient === null) {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const { kv } = await import('@vercel/kv');
+      kvClient = kv;
+      HAS_KV = true;
+    } else {
+      kvClient = false; // 标记：无 KV
+      HAS_KV = false;
+    }
+  }
+  return kvClient;
+}
 
-// 无 KV 时的内存退化（仅在本地未绑定时用，部署后不生效）
-const mem = { users: [], jobs: [], apps: [], favs: [] };
+const mem = { 'zsyx:users': [], 'zsyx:jobs': [], 'zsyx:apps': [], 'zsyx:favs': [], vals: {} };
 
 async function getList(key) {
-  if (HAS_KV) return (await kv.lrange(key, 0, -1)) || [];
+  const kv = await getKv();
+  if (kv) return (await kv.lrange(key, 0, -1)) || [];
   return mem[key] || [];
 }
 async function setList(key, arr) {
-  if (HAS_KV) {
+  const kv = await getKv();
+  if (kv) {
     await kv.del(key);
     if (arr.length) await kv.rpush(key, ...arr);
     return;
@@ -20,32 +33,28 @@ async function setList(key, arr) {
   mem[key] = arr;
 }
 async function getValue(key) {
-  if (HAS_KV) return await kv.get(key);
-  return mem[key] || null;
+  const kv = await getKv();
+  if (kv) return await kv.get(key);
+  return mem.vals[key] ?? null;
 }
 async function setValue(key, val) {
-  if (HAS_KV) return await kv.set(key, val);
-  mem[key] = val;
+  const kv = await getKv();
+  if (kv) return await kv.set(key, val);
+  mem.vals[key] = val;
 }
 
 export const db = {
-  HAS_KV,
-  // 用户
+  get HAS_KV() { return HAS_KV; },
   async getUsers() { return await getList('zsyx:users'); },
   async saveUsers(u) { await setList('zsyx:users', u); },
-  // 职位
   async getJobs() { return await getList('zsyx:jobs'); },
   async saveJobs(j) { await setList('zsyx:jobs', j); },
-  // 投递
   async getApps() { return await getList('zsyx:apps'); },
   async saveApps(a) { await setList('zsyx:apps', a); },
-  // 收藏
   async getFavs() { return await getList('zsyx:favs'); },
   async saveFavs(f) { await setList('zsyx:favs', f); },
-  // 种子标记
   async getSeeded() { return await getValue('zsyx:seeded'); },
   async setSeeded(v) { await setValue('zsyx:seeded', v); },
-  // 简易自增 id
   async nextId(prefix) {
     const n = (await getValue(prefix + ':seq')) || 0;
     const v = n + 1;
