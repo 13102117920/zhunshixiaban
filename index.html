@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>准时下班 · 找份正经工作</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+              400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+              800: '#1e40af', 900: '#1e3a8a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+  <!-- 顶部导航 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">⏰</span>
+        <div>
+          <p class="font-extrabold text-brand-700 text-lg leading-none">准时下班</p>
+          <p class="text-[11px] text-slate-400 leading-none mt-0.5">双休是底线，休三是加分</p>
+        </div>
+      </div>
+      <a href="publish.html" class="text-sm text-brand-600 font-medium hover:text-brand-800">企业发布职位 ›</a>
+    </div>
+  </header>
+
+  <!-- 搜索 + 标语 -->
+  <div class="bg-brand-600 text-white">
+    <div class="max-w-6xl mx-auto px-4 py-8">
+      <h1 class="text-2xl md:text-3xl font-extrabold">拒绝垃圾公司消耗，找份正经工作</h1>
+      <p class="mt-2 text-brand-100 text-sm md:text-base">不画饼，不PUA，按时发薪准点走。来这儿找的，都是守规矩的正经工作。</p>
+      <div class="mt-5 flex flex-col sm:flex-row gap-3 max-w-2xl">
+        <input id="searchInput" type="text" placeholder="搜索职位或公司名…"
+          class="flex-1 rounded-xl px-4 py-3 text-slate-800 text-sm outline-none focus:ring-2 focus:ring-white/70" />
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <div class="flex flex-col md:flex-row gap-6">
+      <!-- 左侧筛选栏 -->
+      <aside class="md:w-72 shrink-0">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 sticky top-20">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-slate-900">筛选条件</h2>
+            <button id="clearBtn" class="text-xs text-brand-600 hover:text-brand-800">清空</button>
+          </div>
+
+          <div class="mb-5">
+            <p class="text-xs font-bold text-red-600 uppercase tracking-wide mb-2">基础合规筛选</p>
+            <div id="filterMandatory" class="space-y-2"></div>
+          </div>
+
+          <div>
+            <p class="text-xs font-bold text-brand-600 uppercase tracking-wide mb-2">外企福利筛选</p>
+            <div id="filterBenefit" class="space-y-2"></div>
+          </div>
+
+          <p id="resultCount" class="mt-4 text-xs text-slate-400"></p>
+        </div>
+      </aside>
+
+      <!-- 右侧职位列表 -->
+      <section class="flex-1">
+        <div id="jobList" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+        <p id="emptyTip" class="hidden text-center text-slate-400 py-16">没有匹配的正经工作，试试减少筛选条件～</p>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const MANDATORY_LABELS = [
+      '入职30日内签正式劳动合同',
+      '入职即缴五险一金（试用期正常缴纳）',
+      '按实际工资基数缴纳社保公积金',
+      '标准双休、每日8小时工作制',
+      '加班按法定标准支付加班费',
+      '带薪年假依法足额兑现',
+      '产假/陪产假/婚假带薪足额休假',
+      '每月固定日期足额发薪不拖欠',
+      '离职正常开离职证明、不克扣工资',
+      '不收取押金、不扣押证件'
+    ];
+    const BENEFIT_LABELS = [
+      '双边12%公积金',
+      '六险一金（含补充医疗险）',
+      '年度13薪及以上',
+      '带薪病假',
+      '弹性工时/可居家办公',
+      '年度免费体检',
+      '年假天数高于法定标准',
+      '无强制加班、下班不线上待命',
+      '年度统一公开调薪',
+      '节日福利、餐补交通补贴'
+    ];
+
+    // 短标签（卡片上彩色小标签用短名）
+    const SHORT = {
+      '入职30日内签正式劳动合同': '签正式合同',
+      '入职即缴五险一金（试用期正常缴纳）': '五险一金',
+      '按实际工资基数缴纳社保公积金': '实缴社保',
+      '标准双休、每日8小时工作制': '双休8h',
+      '加班按法定标准支付加班费': '法定加班费',
+      '带薪年假依法足额兑现': '带薪年假',
+      '产假/陪产假/婚假带薪足额休假': '产假陪产婚假',
+      '每月固定日期足额发薪不拖欠': '按时发薪',
+      '离职正常开离职证明、不克扣工资': '离职不克扣',
+      '不收取押金、不扣押证件': '不押证件',
+      '双边12%公积金': '双边12%公积金',
+      '六险一金（含补充医疗险）': '六险一金',
+      '年度13薪及以上': '13薪+',
+      '带薪病假': '带薪病假',
+      '弹性工时/可居家办公': '弹性/居家',
+      '年度免费体检': '免费体检',
+      '年假天数高于法定标准': '超法定年假',
+      '无强制加班、下班不线上待命': '不线上待命',
+      '年度统一公开调薪': '公开调薪',
+      '节日福利、餐补交通补贴': '节日餐补'
+    };
+
+    // 示例职位数据（发布页可追加到 localStorage 'zhunshi_jobs'）
+    const SEED_JOBS = [
+      { company: '蓝海数字科技', job: '高级前端工程师', salary: '20-32K·14薪',
+        mandatory: MANDATORY_LABELS, benefits: ['双边12%公积金','六险一金（含补充医疗险）','年度13薪及以上','弹性工时/可居家办公','年度免费体检','无强制加班、下班不线上待命','年度统一公开调薪','节日福利、餐补交通补贴'] },
+      { company: '方寸信息', job: '产品经理', salary: '18-28K·13薪',
+        mandatory: MANDATORY_LABELS, benefits: ['年度13薪及以上','带薪病假','年度免费体检','年假天数高于法定标准','节日福利、餐补交通补贴'] },
+      { company: '远山文化传媒', job: 'UI设计师', salary: '12-18K·13薪',
+        mandatory: MANDATORY_LABELS, benefits: ['弹性工时/可居家办公','年度免费体检','年度统一公开调薪','节日福利、餐补交通补贴'] },
+      { company: '恒益制造', job: '供应链专员', salary: '9-14K',
+        mandatory: MANDATORY_LABELS, benefits: ['年度13薪及以上','带薪病假','节日福利、餐补交通补贴'] },
+      { company: '星河云服务', job: '后端开发工程师', salary: '22-35K·15薪',
+        mandatory: MANDATORY_LABELS, benefits: ['双边12%公积金','六险一金（含补充医疗险）','年度13薪及以上','带薪病假','弹性工时/可居家办公','年度免费体检','年假天数高于法定标准','无强制加班、下班不线上待命','年度统一公开调薪','节日福利、餐补交通补贴'] },
+      { company: '春藤教育', job: '课程运营', salary: '10-15K·13薪',
+        mandatory: MANDATORY_LABELS, benefits: ['年度13薪及以上','带薪病假','年假天数高于法定标准','节日福利、餐补交通补贴'] }
+    ];
+
+    // 合并发布页新增的职位
+    let jobs = [...SEED_JOBS];
+    try {
+      const extra = JSON.parse(localStorage.getItem('zhunshi_jobs') || '[]');
+      jobs = jobs.concat(extra);
+    } catch(e) {}
+
+    const selectedFilters = new Set();
+    const activeTags = (job) => [...job.mandatory, ...job.benefits];
+
+    // 渲染左侧筛选
+    function renderFilter(list, containerId) {
+      const c = document.getElementById(containerId);
+      list.forEach(label => {
+        const id = 'f_' + containerId + '_' + label;
+        const wrap = document.createElement('label');
+        wrap.className = 'flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none hover:text-brand-700';
+        wrap.innerHTML = `<input type="checkbox" value="${label}" class="filter-cb w-4 h-4 rounded accent-brand-600 cursor-pointer" /> <span>${label}</span>`;
+        c.appendChild(wrap);
+      });
+    }
+    renderFilter(MANDATORY_LABELS, 'filterMandatory');
+    renderFilter(BENEFIT_LABELS, 'filterBenefit');
+
+    document.querySelectorAll('.filter-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        if (cb.checked) selectedFilters.add(cb.value);
+        else selectedFilters.delete(cb.value);
+        renderJobs();
+      });
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      selectedFilters.clear();
+      document.querySelectorAll('.filter-cb').forEach(cb => cb.checked = false);
+      document.getElementById('searchInput').value = '';
+      renderJobs();
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderJobs);
+
+    function tagClass(label) {
+      // 强制合规项用红/橙系，福利项用蓝/绿系
+      if (MANDATORY_LABELS.includes(label)) return 'bg-red-50 text-red-600 border border-red-200';
+      return 'bg-brand-50 text-brand-700 border border-brand-200';
+    }
+
+    function renderJobs() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const list = document.getElementById('jobList');
+      list.innerHTML = '';
+      const filters = [...selectedFilters];
+
+      const matched = jobs.filter(job => {
+        const hitText = !q || job.job.toLowerCase().includes(q) || job.company.toLowerCase().includes(q);
+        const hitFilter = filters.every(f => activeTags(job).includes(f));
+        return hitText && hitFilter;
+      });
+
+      document.getElementById('emptyTip').classList.toggle('hidden', matched.length > 0);
+      document.getElementById('resultCount').textContent = `共 ${matched.length} 个正经职位`;
+
+      matched.forEach(job => {
+        const tags = activeTags(job).map(t =>
+          `<span class="inline-block text-[11px] px-2 py-0.5 rounded-full mr-1 mb-1 ${tagClass(t)}">${SHORT[t] || t}</span>`
+        ).join('');
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-2xl shadow-sm border border-slate-200 p-5 hover:shadow-md hover:border-brand-300 transition';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="font-bold text-slate-900 text-lg">${job.job}</h3>
+              <p class="text-slate-500 text-sm mt-0.5">${job.company}</p>
+            </div>
+            <span class="text-brand-600 font-bold whitespace-nowrap">${job.salary}</span>
+          </div>
+          <div class="mt-3 flex flex-wrap">${tags}</div>`;
+        list.appendChild(card);
+      });
+    }
+
+    renderJobs();
+  </script>
+</body>
+</html>
