@@ -46,6 +46,7 @@ export default async function handler(req, res) {
     if (pwd.length < 6) return send(res, { ok: false, msg: '密码至少6位' }, 400);
     const users = await db.getUsers();
     if (users.find(u => u.phone === phone)) return send(res, { ok: false, msg: '该手机号已注册' }, 400);
+    const user = { phone, pwd: hashPwd(pwd), role: null, createdAt: Date.now() };
     const token = Buffer.from(phone + ':' + SECRET).toString('base64');
     users.push(user);
     await db.saveUsers(users);
