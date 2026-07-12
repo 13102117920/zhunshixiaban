@@ -1,0 +1,24 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/13102117920/zhunshixiaban.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/13102117920/zhunshixiaban/issues"
+  },
+  "homepage": "https://github.com/13102117920/zhunshixiaban#readme",
+  "dependencies": {
+    "@vercel/kv": "^3.0.0"
+  }
+}

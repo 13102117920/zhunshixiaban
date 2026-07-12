@@ -90,44 +90,49 @@
   <script src="app.js"></script>
   <script>
     renderNav();
-    const s = getSession();
-    if (!s) { document.getElementById('noLogin').classList.remove('hidden'); }
-    else if (!s.role) {
-      document.getElementById('noRole').classList.remove('hidden');
-      document.querySelectorAll('.role-btn').forEach(b => b.addEventListener('click', () => {
-        setRole(b.dataset.role); location.reload();
-      }));
-    } else if (s.role === 'seeker') {
-      document.getElementById('seekerView').classList.remove('hidden');
-      const jobs = getJobs() || [];
-      document.getElementById('seekTotal').textContent = jobs.length;
-      const apps = getMyApps();
-      const favs = getMyFavs();
-      document.getElementById('seekApplied').textContent = apps.length;
-      document.getElementById('seekFav').textContent = favs.length;
-      const fl = document.getElementById('favList');
-      const favJobs = jobs.filter(j => favs.includes(j.id));
-      fl.innerHTML = favJobs.length ? favJobs.map(j => `
-        <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
-          <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
-          <span class="text-brand-600 font-bold">${j.salary}</span>
-        </div>`).join('') : '<p class="text-slate-400 text-sm">还没有收藏，去列表页心仪职位点收藏吧。</p>';
-    } else if (s.role === 'recruiter') {
-      document.getElementById('recView').classList.remove('hidden');
-      const jobs = getJobs() || [];
-      const mine = jobs.filter(j => j.owner === s.phone);
-      document.getElementById('recTotal').textContent = mine.length;
-      const allApps = JSON.parse(localStorage.getItem('zsyx_applications') || '[]');
-      document.getElementById('recApps').textContent = allApps.filter(a => {
-        const j = jobs.find(x => x.id === a.jobId); return j && j.owner === s.phone;
-      }).length;
-      const mj = document.getElementById('myJobs');
-      mj.innerHTML = mine.length ? mine.map(j => `
-        <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
-          <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
-          <span class="text-brand-600 font-bold">${j.salary}</span>
-        </div>`).join('') : '<p class="text-slate-400 text-sm">还没发布职位，<a href="publish.html" class="text-brand-600">去发布 ›</a></p>';
-    }
+    (async () => {
+      if (getToken()) await refreshMe();
+      const s = getSession();
+      if (!s) { document.getElementById('noLogin').classList.remove('hidden'); return; }
+      if (!s.role) {
+        document.getElementById('noRole').classList.remove('hidden');
+        document.querySelectorAll('.role-btn').forEach(b => b.addEventListener('click', async () => {
+          await setRole(b.dataset.role); location.reload();
+        }));
+        return;
+      }
+      const jobs = await fetchJobs();
+      if (s.role === 'seeker') {
+        document.getElementById('seekerView').classList.remove('hidden');
+        document.getElementById('seekTotal').textContent = jobs.length;
+        await loadMyState();
+        const apps = getMyApps();
+        const favs = getMyFavs();
+        document.getElementById('seekApplied').textContent = apps.length;
+        document.getElementById('seekFav').textContent = favs.length;
+        const fl = document.getElementById('favList');
+        const favJobs = jobs.filter(j => favs.includes(j.id));
+        fl.innerHTML = favJobs.length ? favJobs.map(j => `
+          <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
+            <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
+            <span class="text-brand-600 font-bold">${j.salary}</span>
+          </div>`).join('') : '<p class="text-slate-400 text-sm">还没有收藏，去列表页心仪职位点收藏吧。</p>';
+      } else if (s.role === 'recruiter') {
+        document.getElementById('recView').classList.remove('hidden');
+        const mine = jobs.filter(j => j.owner === s.phone);
+        document.getElementById('recTotal').textContent = mine.length;
+        // 收到的投递：从云端统计
+        const { data } = await api('apply?action=mine', 'GET');
+        const myAppsSet = new Set((data.ok ? data.applied : []));
+        document.getElementById('recApps').textContent = mine.filter(j => myAppsSet.has(j.id)).length;
+        const mj = document.getElementById('myJobs');
+        mj.innerHTML = mine.length ? mine.map(j => `
+          <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
+            <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
+            <span class="text-brand-600 font-bold">${j.salary}</span>
+          </div>`).join('') : '<p class="text-slate-400 text-sm">还没发布职位，<a href="publish.html" class="text-brand-600">去发布 ›</a></p>';
+      }
+    })();
   </script>
 </body>
 </html>

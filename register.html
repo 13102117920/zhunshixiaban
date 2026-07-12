@@ -62,11 +62,11 @@
   <script src="app.js"></script>
   <script>
     renderNav();
-    let tmp = {};
-    document.getElementById('toRole').addEventListener('click', () => {
-      const r = registerUser(document.getElementById('phone').value, document.getElementById('pwd').value);
+    document.getElementById('toRole').addEventListener('click', async () => {
+      const r = await registerUser(document.getElementById('phone').value, document.getElementById('pwd').value);
       if (!r.ok) { const e=document.getElementById('err1'); e.textContent=r.msg; e.classList.remove('hidden'); return; }
-      tmp = r.user; setSession({ phone: r.user.phone, role: null, loginAt: Date.now() });
+      // 自动登录（注册后直接拿 token）
+      await loginUser(document.getElementById('phone').value, document.getElementById('pwd').value);
       document.getElementById('step1').classList.add('hidden');
       document.getElementById('step2').classList.remove('hidden');
     });
@@ -79,9 +79,10 @@
         document.getElementById('err2').classList.add('hidden');
       });
     });
-    document.getElementById('finish').addEventListener('click', () => {
+    document.getElementById('finish').addEventListener('click', async () => {
       if (!picked) { const e=document.getElementById('err2'); e.textContent='请选择身份'; e.classList.remove('hidden'); return; }
-      setRole(picked);
+      const r = await setRole(picked);
+      if (!r.ok) { const e=document.getElementById('err2'); e.textContent=r.msg; e.classList.remove('hidden'); return; }
       location.href = 'dashboard.html';
     });
   </script>

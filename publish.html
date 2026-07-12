@@ -126,22 +126,19 @@
     }
     mZone.querySelectorAll('input').forEach(cb => cb.addEventListener('change', validate));
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
       const job = {
-        id: 'u' + Date.now(),
-        owner: session.phone,
         company: f.company.value.trim(),
         city: f.city.value.trim(),
         job: f.job.value.trim(),
         salary: f.salary.value.trim(),
         mandatory: [...mZone.querySelectorAll('input:checked')].map(c => c.value),
-        benefits: [...bZone.querySelectorAll('input:checked')].map(c => c.value),
-        source: 'user',
-        at: Date.now()
+        benefits: [...bZone.querySelectorAll('input:checked')].map(c => c.value)
       };
-      addJob(job);
+      const r = await addJob(job);
+      if (!r.ok) { alert(r.msg || '发布失败'); return; }
       alert('发布成功！\n\n' + job.company + '（' + job.city + '）· ' + job.job + '\n' + job.salary);
       location.href = 'index.html';
     });

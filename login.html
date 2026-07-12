@@ -44,11 +44,12 @@
   <script src="app.js"></script>
   <script>
     renderNav();
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      const r = loginUser(document.getElementById('phone').value, document.getElementById('pwd').value);
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const r = await loginUser(document.getElementById('phone').value, document.getElementById('pwd').value);
       const e = document.getElementById('err');
       if (!r.ok) { e.textContent = r.msg; e.classList.remove('hidden'); return; }
-      location.href = r.user.role ? 'dashboard.html' : 'register.html?choose=1';
+      const role = (getSession() || {}).role;
+      location.href = role ? 'dashboard.html' : 'dashboard.html?choose=1';
     });
   </script>
 </body>

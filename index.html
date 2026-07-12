@@ -60,9 +60,9 @@
   <script src="app.js"></script>
   <script>
     renderNav();
-    ensureSeed();
     const selectedFilters = new Set();
-    const activeTags = (job) => [...job.mandatory, ...job.benefits];
+    let ALL_JOBS = [];
+    const activeTags = (job) => [...(job.mandatory||[]), ...(job.benefits||[])];
 
     function renderFilter(list, containerId) {
       const c = document.getElementById(containerId);
@@ -96,13 +96,12 @@
 
     function renderJobs() {
       const q = document.getElementById('searchInput').value.trim().toLowerCase();
-      const jobs = getJobs() || [];
       const filters = [...selectedFilters];
       const session = getSession();
       const myApps = getMyApps();
       const myFavs = getMyFavs();
 
-      const matched = jobs.filter(job => {
+      const matched = ALL_JOBS.filter(job => {
         const hitText = !q || [job.job, job.company, job.city].join(' ').toLowerCase().includes(q);
         const hitFilter = filters.every(f => activeTags(job).includes(f));
         return hitText && hitFilter;
@@ -122,7 +121,7 @@
         const actions = canAct ? `
           <div class="mt-3 flex gap-2">
             <button onclick="event.stopPropagation();doApply('${job.id}')" class="text-xs ${isApplied?'bg-slate-200 text-slate-500':'bg-brand-600 text-white'} rounded-lg px-3 py-1.5 font-medium">${isApplied?'已投递':'投简历'}</button>
-            <button onclick="event.stopPropagation();doFav('${job.id}',this)" class="text-xs border ${isFav?'border-red-300 text-red-500':'border-slate-300 text-slate-500'} rounded-lg px-3 py-1.5 font-medium">${isFav?'★ 已收藏':'☆ 收藏'}</button>
+            <button onclick="event.stopPropagation();doFav('${job.id}')" class="text-xs border ${isFav?'border-red-300 text-red-500':'border-slate-300 text-slate-500'} rounded-lg px-3 py-1.5 font-medium">${isFav?'★ 已收藏':'☆ 收藏'}</button>
           </div>` : (session && session.role === 'recruiter' ? '' :
           `<div class="mt-3"><a href="login.html" class="text-xs text-brand-600">登录后可投递/收藏 ›</a></div>`);
 
@@ -142,19 +141,25 @@
       });
     }
 
-    function doApply(id) {
-      const r = applyJob(id);
+    async function doApply(id) {
+      const r = await applyJob(id);
       if (!r.ok) { alert(r.msg); return; }
+      await loadMyState();
       renderJobs();
       alert('投递成功！去「我的-求职中心」可查看记录。');
     }
-    function doFav(id, btn) {
-      const r = toggleFav(id);
+    async function doFav(id) {
+      const r = await toggleFav(id);
       if (!r.ok) { alert(r.msg); return; }
+      await loadMyState();
       renderJobs();
     }
 
-    renderJobs();
+    (async () => {
+      if (getToken()) await loadMyState();
+      ALL_JOBS = await fetchJobs();
+      renderJobs();
+    })();
   </script>
 </body>
 </html>
