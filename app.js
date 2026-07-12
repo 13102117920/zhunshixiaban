@@ -45,7 +45,10 @@ async function api(path, method = 'GET', body = null) {
 /* ---------- 用户系统 ---------- */
 async function registerUser(phone, pwd) {
   const { data } = await api('users?action=register', 'POST', { phone, pwd });
-  if (data.ok) { localStorage.setItem(K_TOKEN, data.user ? '' : ''); }
+  if (data.ok && data.token) {
+    localStorage.setItem(K_TOKEN, data.token);
+    setSession({ phone, role: data.role });
+  }
   return data;
 }
 async function loginUser(phone, pwd) {

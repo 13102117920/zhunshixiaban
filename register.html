@@ -65,8 +65,6 @@
     document.getElementById('toRole').addEventListener('click', async () => {
       const r = await registerUser(document.getElementById('phone').value, document.getElementById('pwd').value);
       if (!r.ok) { const e=document.getElementById('err1'); e.textContent=r.msg; e.classList.remove('hidden'); return; }
-      // 自动登录（注册后直接拿 token）
-      await loginUser(document.getElementById('phone').value, document.getElementById('pwd').value);
       document.getElementById('step1').classList.add('hidden');
       document.getElementById('step2').classList.remove('hidden');
     });
