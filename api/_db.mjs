@@ -1,45 +1,54 @@
-// 共享数据层：Vercel KV（Redis REST）封装 —— 惰性初始化，无 KV 时内存降级
-let kvClient = null;
-let HAS_KV = false;
+// 共享数据层：Vercel KV（Redis REST）原生 fetch 封装
+// 绑定 KV 后会注入 KV_REST_API_URL / KV_REST_API_TOKEN
+// 未绑定 KV 时走内存降级（数据不持久，仅用于未配置环境验证）
 
-async function getKv() {
-  if (kvClient === null) {
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      const { kv } = await import('@vercel/kv');
-      kvClient = kv;
-      HAS_KV = true;
-    } else {
-      kvClient = false; // 标记：无 KV
-      HAS_KV = false;
-    }
-  }
-  return kvClient;
+const KV_URL = process.env.KV_REST_API_URL || '';
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || '';
+const HAS_KV = !!(KV_URL && KV_TOKEN);
+
+async function kvCmd(args) {
+  // Vercel KV REST: POST / urlencoded command=SET&args=...
+  const body = new URLSearchParams();
+  body.set('command', args[0]);
+  // args[1..] 作为位置参数
+  args.slice(1).forEach((a, i) => body.set('args', a));
+  const res = await fetch(KV_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'content-type': 'application/x-www-form-urlencoded' },
+    body
+  });
+  return await res.json();
 }
 
 const mem = { 'zsyx:users': [], 'zsyx:jobs': [], 'zsyx:apps': [], 'zsyx:favs': [], vals: {} };
 
 async function getList(key) {
-  const kv = await getKv();
-  if (kv) return (await kv.lrange(key, 0, -1)) || [];
+  if (HAS_KV) {
+    const r = await kvCmd(['LRANGE', key, '0', '-1']);
+    return (r.result || []).map(s => JSON.parse(s));
+  }
   return mem[key] || [];
 }
 async function setList(key, arr) {
-  const kv = await getKv();
-  if (kv) {
-    await kv.del(key);
-    if (arr.length) await kv.rpush(key, ...arr);
+  if (HAS_KV) {
+    await kvCmd(['DEL', key]);
+    if (arr.length) {
+      const args = ['RPUSH', key, ...arr.map(a => JSON.stringify(a))];
+      await kvCmd(args);
+    }
     return;
   }
   mem[key] = arr;
 }
 async function getValue(key) {
-  const kv = await getKv();
-  if (kv) return await kv.get(key);
+  if (HAS_KV) {
+    const r = await kvCmd(['GET', key]);
+    return r.result ? JSON.parse(r.result) : null;
+  }
   return mem.vals[key] ?? null;
 }
 async function setValue(key, val) {
-  const kv = await getKv();
-  if (kv) return await kv.set(key, val);
+  if (HAS_KV) { await kvCmd(['SET', key, JSON.stringify(val)]); return; }
   mem.vals[key] = val;
 }
 
