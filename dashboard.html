@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>准时下班 · 我的</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={theme:{extend:{colors:{brand:{50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a'}}}}}</script>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <a href="index.html" class="flex items-center gap-2">
+        <span class="text-2xl">⏰</span>
+        <p class="font-extrabold text-brand-700 text-lg leading-none">准时下班</p>
+      </a>
+      <div id="navRight"></div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-8">
+    <!-- 未登录 -->
+    <section id="noLogin" class="hidden text-center py-20">
+      <p class="text-slate-500">你还没有登录</p>
+      <a href="login.html" class="inline-block mt-4 bg-brand-600 text-white rounded-xl px-6 py-3 font-medium hover:bg-brand-700">去登录</a>
+    </section>
+
+    <!-- 未选角色 -->
+    <section id="noRole" class="hidden">
+      <h1 class="text-2xl font-extrabold text-slate-900">选择你的身份</h1>
+      <div class="mt-6 grid grid-cols-2 gap-4 max-w-lg">
+        <button data-role="recruiter" class="role-btn rounded-xl border-2 border-slate-200 px-4 py-8 text-center hover:border-brand-400 transition">
+          <div class="text-4xl mb-2">🏢</div>
+          <p class="font-bold text-slate-900">我是企业</p>
+          <p class="text-xs text-slate-500 mt-1">发布合规职位</p>
+        </button>
+        <button data-role="seeker" class="role-btn rounded-xl border-2 border-slate-200 px-4 py-8 text-center hover:border-brand-400 transition">
+          <div class="text-4xl mb-2">🔍</div>
+          <p class="font-bold text-slate-900">我是求职者</p>
+          <p class="text-xs text-slate-500 mt-1">找份正经工作</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- 求职者视图 -->
+    <section id="seekerView" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-extrabold text-slate-900">我的求职中心</h1>
+        <a href="index.html" class="text-sm bg-brand-600 text-white rounded-lg px-4 py-2 font-medium hover:bg-brand-700">去投简历 ›</a>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-4">
+        <a href="index.html" class="bg-white rounded-2xl border border-slate-200 p-5 hover:border-brand-300">
+          <p class="text-sm text-slate-500">可投职位</p>
+          <p id="seekTotal" class="text-2xl font-extrabold text-brand-600 mt-1">0</p>
+        </a>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="text-sm text-slate-500">已投递</p>
+          <p id="seekApplied" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="text-sm text-slate-500">已收藏</p>
+          <p id="seekFav" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
+        </div>
+      </div>
+      <h2 class="font-bold text-slate-900 mt-8 mb-3">我收藏的职位</h2>
+      <div id="favList" class="space-y-3"></div>
+    </section>
+
+    <!-- 招聘者视图 -->
+    <section id="recView" class="hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-extrabold text-slate-900">我的招聘中心</h1>
+        <a href="publish.html" class="text-sm bg-brand-600 text-white rounded-lg px-4 py-2 font-medium hover:bg-brand-700">发布职位 ›</a>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="text-sm text-slate-500">已发布职位</p>
+          <p id="recTotal" class="text-2xl font-extrabold text-brand-600 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="text-sm text-slate-500">收到投递</p>
+          <p id="recApps" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
+        </div>
+      </div>
+      <h2 class="font-bold text-slate-900 mt-8 mb-3">我发布的职位</h2>
+      <div id="myJobs" class="space-y-3"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    renderNav();
+    const s = getSession();
+    if (!s) { document.getElementById('noLogin').classList.remove('hidden'); }
+    else if (!s.role) {
+      document.getElementById('noRole').classList.remove('hidden');
+      document.querySelectorAll('.role-btn').forEach(b => b.addEventListener('click', () => {
+        setRole(b.dataset.role); location.reload();
+      }));
+    } else if (s.role === 'seeker') {
+      document.getElementById('seekerView').classList.remove('hidden');
+      const jobs = getJobs() || [];
+      document.getElementById('seekTotal').textContent = jobs.length;
+      const apps = getMyApps();
+      const favs = getMyFavs();
+      document.getElementById('seekApplied').textContent = apps.length;
+      document.getElementById('seekFav').textContent = favs.length;
+      const fl = document.getElementById('favList');
+      const favJobs = jobs.filter(j => favs.includes(j.id));
+      fl.innerHTML = favJobs.length ? favJobs.map(j => `
+        <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
+          <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
+          <span class="text-brand-600 font-bold">${j.salary}</span>
+        </div>`).join('') : '<p class="text-slate-400 text-sm">还没有收藏，去列表页心仪职位点收藏吧。</p>';
+    } else if (s.role === 'recruiter') {
+      document.getElementById('recView').classList.remove('hidden');
+      const jobs = getJobs() || [];
+      const mine = jobs.filter(j => j.owner === s.phone);
+      document.getElementById('recTotal').textContent = mine.length;
+      const allApps = JSON.parse(localStorage.getItem('zsyx_applications') || '[]');
+      document.getElementById('recApps').textContent = allApps.filter(a => {
+        const j = jobs.find(x => x.id === a.jobId); return j && j.owner === s.phone;
+      }).length;
+      const mj = document.getElementById('myJobs');
+      mj.innerHTML = mine.length ? mine.map(j => `
+        <div class="bg-white rounded-xl border border-slate-200 p-4 flex justify-between items-center">
+          <div><p class="font-bold text-slate-900">${j.job}</p><p class="text-sm text-slate-500">${j.company} · ${j.city||''}</p></div>
+          <span class="text-brand-600 font-bold">${j.salary}</span>
+        </div>`).join('') : '<p class="text-slate-400 text-sm">还没发布职位，<a href="publish.html" class="text-brand-600">去发布 ›</a></p>';
+    }
+  </script>
+</body>
+</html>

@@ -5,52 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>准时下班 · 发布职位</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
-              400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
-              800: '#1e40af', 900: '#1e3a8a'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <script>tailwind.config={theme:{extend:{colors:{brand:{50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a'}}}}}</script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased">
-  <!-- 顶部导航 -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
     <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-2">
+      <a href="index.html" class="flex items-center gap-2">
         <span class="text-2xl">⏰</span>
-        <div>
-          <p class="font-extrabold text-brand-700 text-lg leading-none">准时下班</p>
-          <p class="text-[11px] text-slate-400 leading-none mt-0.5">双休是底线，休三是加分</p>
-        </div>
-      </div>
-      <a href="index.html" class="text-sm text-brand-600 font-medium hover:text-brand-800">查看职位 ›</a>
+        <div><p class="font-extrabold text-brand-700 text-lg leading-none">准时下班</p>
+        <p class="text-[11px] text-slate-400 leading-none mt-0.5">双休是底线，休三是加分</p></div>
+      </a>
+      <div id="navRight"></div>
     </div>
   </header>
 
   <main class="max-w-5xl mx-auto px-4 py-8">
-    <!-- 标题区 -->
     <div class="mb-8">
       <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900">发布合规职位</h1>
       <p class="mt-2 text-slate-500 text-sm md:text-base">不画饼，不PUA，按时发薪准点走。所有企业强制勾选劳动法合规项，不合规的公司根本发不了职位。</p>
     </div>
 
-    <form id="publishForm" class="space-y-6">
-      <!-- 基础信息 -->
+    <!-- 未登录提示 -->
+    <section id="gate" class="hidden bg-white rounded-2xl border border-slate-200 p-8 text-center">
+      <p class="text-slate-600">发布职位需登录企业账号</p>
+      <div class="mt-4 flex justify-center gap-3">
+        <a href="login.html" class="bg-brand-600 text-white rounded-xl px-6 py-3 font-medium hover:bg-brand-700">登录</a>
+        <a href="register.html" class="border border-slate-300 text-slate-600 rounded-xl px-6 py-3 font-medium hover:border-brand-400">注册企业</a>
+      </div>
+    </section>
+
+    <form id="publishForm" class="space-y-6 hidden">
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
         <h2 class="font-bold text-slate-900 text-lg mb-4">基础信息</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-1.5">企业名称 <span class="text-red-500">*</span></label>
             <input type="text" name="company" required placeholder="如：某正经科技有限公司"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-1.5">所属城市 <span class="text-red-500">*</span></label>
+            <input type="text" name="city" required placeholder="如：北京 / 上海 / 深圳"
               class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none" />
           </div>
           <div>
@@ -66,7 +61,6 @@
         </div>
       </section>
 
-      <!-- 第一区：劳动法强制必备 -->
       <section class="bg-white rounded-2xl shadow-sm border-2 border-red-200 p-5 md:p-6">
         <div class="flex items-start gap-2 mb-4">
           <span class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold shrink-0">!</span>
@@ -75,13 +69,10 @@
             <p class="text-red-500/80 text-sm mt-0.5">未全部勾选将无法提交。这是守规矩的最低门槛，也是求职者敢投的前提。</p>
           </div>
         </div>
-        <div id="mandatoryZone" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- 复选框由 JS 渲染 -->
-        </div>
+        <div id="mandatoryZone" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         <p id="mandatoryHint" class="mt-3 text-sm text-red-500 font-medium hidden">请确认满足全部劳动法强制要求</p>
       </section>
 
-      <!-- 第二区：外企标准福利 -->
       <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-6">
         <div class="flex items-start gap-2 mb-4">
           <span class="mt-0.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-bold shrink-0">✦</span>
@@ -90,12 +81,9 @@
             <p class="text-slate-500 text-sm mt-0.5">勾得越多越加分，求职者更能一眼看出你的诚意。</p>
           </div>
         </div>
-        <div id="benefitZone" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <!-- 复选框由 JS 渲染 -->
-        </div>
+        <div id="benefitZone" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
       </section>
 
-      <!-- 提交 -->
       <div class="sticky bottom-0 bg-slate-50/90 backdrop-blur py-4 -mx-4 px-4 border-t border-slate-200">
         <button id="submitBtn" type="submit" disabled
           class="w-full md:w-auto md:min-w-[240px] mx-auto block rounded-xl bg-brand-600 text-white font-bold text-base py-3.5 px-8 transition disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed enabled:hover:bg-brand-700">
@@ -105,74 +93,58 @@
     </form>
   </main>
 
+  <script src="app.js"></script>
   <script>
-    const MANDATORY = [
-      '入职30日内签正式劳动合同',
-      '入职即缴五险一金（试用期正常缴纳）',
-      '按实际工资基数缴纳社保公积金',
-      '标准双休、每日8小时工作制',
-      '加班按法定标准支付加班费',
-      '带薪年假依法足额兑现',
-      '产假/陪产假/婚假带薪足额休假',
-      '每月固定日期足额发薪不拖欠',
-      '离职正常开离职证明、不克扣工资',
-      '不收取押金、不扣押证件'
-    ];
-    const BENEFITS = [
-      '双边12%公积金',
-      '六险一金（含补充医疗险）',
-      '年度13薪及以上',
-      '带薪病假',
-      '弹性工时/可居家办公',
-      '年度免费体检',
-      '年假天数高于法定标准',
-      '无强制加班、下班不线上待命',
-      '年度统一公开调薪',
-      '节日福利、餐补交通补贴'
-    ];
+    renderNav();
+    const session = getSession();
+    const form = document.getElementById('publishForm');
+    const gate = document.getElementById('gate');
+    if (!session) { gate.classList.remove('hidden'); }
+    else if (session.role !== 'recruiter') {
+      gate.classList.remove('hidden');
+      gate.querySelector('p').textContent = '当前为求职者账号，发布职位请使用企业账号';
+    } else { form.classList.remove('hidden'); }
 
     function makeCheckbox(item, zone) {
-      const id = (zone === 'm' ? 'm_' : 'b_') + item;
       const label = document.createElement('label');
       label.className = 'flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 cursor-pointer hover:border-brand-300 hover:bg-brand-50/50 transition select-none';
-      label.innerHTML = `
-        <input type="checkbox" data-zone="${zone}" value="${item}" class="mt-0.5 w-5 h-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-600" />
+      label.innerHTML = `<input type="checkbox" data-zone="${zone}" value="${item}" class="mt-0.5 w-5 h-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer accent-brand-600" />
         <span class="text-sm text-slate-700 leading-snug">${item}</span>`;
       return label;
     }
-
     const mZone = document.getElementById('mandatoryZone');
     const bZone = document.getElementById('benefitZone');
-    MANDATORY.forEach(i => mZone.appendChild(makeCheckbox(i, 'm')));
-    BENEFITS.forEach(i => bZone.appendChild(makeCheckbox(i, 'b')));
+    MANDATORY_LABELS.forEach(i => mZone.appendChild(makeCheckbox(i, 'm')));
+    BENEFITS_LABELS.forEach(i => bZone.appendChild(makeCheckbox(i, 'b')));
 
     const submitBtn = document.getElementById('submitBtn');
     const mandatoryHint = document.getElementById('mandatoryHint');
-
     function validate() {
-      const checkedMandatory = mZone.querySelectorAll('input:checked').length;
-      const allChecked = checkedMandatory === MANDATORY.length;
-      submitBtn.disabled = !allChecked;
-      mandatoryHint.classList.toggle('hidden', allChecked);
+      const all = mZone.querySelectorAll('input:checked').length === MANDATORY_LABELS.length;
+      submitBtn.disabled = !all;
+      mandatoryHint.classList.toggle('hidden', all);
     }
+    mZone.querySelectorAll('input').forEach(cb => cb.addEventListener('change', validate));
 
-    document.querySelectorAll('#mandatoryZone input').forEach(cb => {
-      cb.addEventListener('change', validate);
-    });
-
-    document.getElementById('publishForm').addEventListener('submit', (e) => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const data = {
-        company: e.target.company.value,
-        job: e.target.job.value,
-        salary: e.target.salary.value,
+      const f = e.target;
+      const job = {
+        id: 'u' + Date.now(),
+        owner: session.phone,
+        company: f.company.value.trim(),
+        city: f.city.value.trim(),
+        job: f.job.value.trim(),
+        salary: f.salary.value.trim(),
         mandatory: [...mZone.querySelectorAll('input:checked')].map(c => c.value),
-        benefits: [...bZone.querySelectorAll('input:checked')].map(c => c.value)
+        benefits: [...bZone.querySelectorAll('input:checked')].map(c => c.value),
+        source: 'user',
+        at: Date.now()
       };
-      localStorage.setItem('zhunshi_last_post', JSON.stringify(data));
-      alert('发布成功！\\n\\n' + data.company + ' · ' + data.job + '\\n' + data.salary + '\\n\\n已勾选合规项 ' + data.mandatory.length + ' 项，福利 ' + data.benefits.length + ' 项');
+      addJob(job);
+      alert('发布成功！\n\n' + job.company + '（' + job.city + '）· ' + job.job + '\n' + job.salary);
+      location.href = 'index.html';
     });
-
     validate();
   </script>
 </body>
