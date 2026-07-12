@@ -1,8 +1,5 @@
 import { db } from './_db.mjs';
 
-function ok(data, code = 200) { return new Response(JSON.stringify(data), { status: code, headers: { 'content-type': 'application/json' } }); }
-function err(msg, code = 400) { return new Response(JSON.stringify({ ok: false, msg }), { status: code, headers: { 'content-type': 'application/json' } }); }
-
 const SECRET = 'zsyx-sign-v1';
 function decodeToken(token) {
   try {
@@ -13,26 +10,39 @@ function decodeToken(token) {
   return null;
 }
 
-export default async function handler(req) {
+async function readBody(req) {
+  return new Promise((resolve) => {
+    let raw = '';
+    req.on('data', c => raw += c);
+    req.on('end', () => { try { resolve(JSON.parse(raw)); } catch (e) { resolve({}); } });
+    req.on('error', () => resolve({}));
+  });
+}
+
+function send(res, data, code = 200) {
+  res.setHeader('content-type', 'application/json');
+  res.statusCode = code;
+  res.end(JSON.stringify(data));
+}
+
+export default async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost');
   const action = url.searchParams.get('action') || 'apply';
-  const token = req.headers.get('authorization') || '';
+  const token = (req.headers.authorization || req.headers.Authorization || '');
   const phone = decodeToken(token);
-  if (!phone) return err('请先登录', 401);
+  if (!phone) return send(res, { ok: false, msg: '请先登录' }, 401);
   const users = await db.getUsers();
   const u = users.find(x => x.phone === phone);
-  if (!u || u.role !== 'seeker') return err('仅求职者可操作', 403);
-
-  let body = {};
-  try { body = await req.json(); } catch (e) {}
+  if (!u || u.role !== 'seeker') return send(res, { ok: false, msg: '仅求职者可操作' }, 403);
+  const body = await readBody(req);
 
   if (action === 'apply') {
     const jobId = body.jobId;
     const apps = await db.getApps();
-    if (apps.find(a => a.phone === phone && a.jobId === jobId)) return err('已投递过该职位');
+    if (apps.find(a => a.phone === phone && a.jobId === jobId)) return send(res, { ok: false, msg: '已投递过该职位' }, 400);
     apps.push({ phone, jobId, at: Date.now() });
     await db.saveApps(apps);
-    return ok({ ok: true });
+    return send(res, { ok: true });
   }
 
   if (action === 'fav') {
@@ -42,18 +52,14 @@ export default async function handler(req) {
     let fav = false;
     if (i >= 0) favs.splice(i, 1); else { favs.push({ phone, jobId }); fav = true; }
     await db.saveFavs(favs);
-    return ok({ ok: true, fav });
+    return send(res, { ok: true, fav });
   }
 
   if (action === 'mine') {
     const apps = await db.getApps();
     const favs = await db.getFavs();
-    return ok({
-      ok: true,
-      applied: apps.filter(a => a.phone === phone).map(a => a.jobId),
-      favs: favs.filter(f => f.phone === phone).map(f => f.jobId)
-    });
+    return send(res, { ok: true, applied: apps.filter(a => a.phone === phone).map(a => a.jobId), favs: favs.filter(f => f.phone === phone).map(f => f.jobId) });
   }
 
-  return err('unknown action');
+  return send(res, { ok: false, msg: 'unknown action' }, 400);
 }
