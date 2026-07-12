@@ -1,73 +1,86 @@
-// 共享数据层：Vercel KV（Redis REST）原生 fetch 封装
-// 绑定 KV 后会注入 KV_REST_API_URL / KV_REST_API_TOKEN
-// 未绑定 KV 时走内存降级（数据不持久，仅用于未配置环境验证）
+// 共享数据层：通过 GitHub API 读写仓库内 data.json
+// 环境变量：GH_TOKEN（有 repo 权限）、GH_REPO（owner/name）、GH_BRANCH
+// 降级：无 GH_TOKEN 时内存态（数据不持久）
 
-const KV_URL = process.env.KV_REST_API_URL || '';
-const KV_TOKEN = process.env.KV_REST_API_TOKEN || '';
-const HAS_KV = !!(KV_URL && KV_TOKEN);
+const GH_TOKEN = process.env.GH_TOKEN || '';
+const GH_REPO = process.env.GH_REPO || '13102117920/zhunshixiaban';
+const GH_BRANCH = process.env.GH_BRANCH || 'master';
+const HAS_GH = !!GH_TOKEN;
+const DATA_PATH = 'data.json';
 
-async function kvCmd(args) {
-  // Vercel KV REST: POST / urlencoded command=SET&args=...
-  const body = new URLSearchParams();
-  body.set('command', args[0]);
-  // args[1..] 作为位置参数
-  args.slice(1).forEach((a, i) => body.set('args', a));
-  const res = await fetch(KV_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${KV_TOKEN}`, 'content-type': 'application/x-www-form-urlencoded' },
-    body
+async function ghApi(method, path, body) {
+  const res = await fetch(`https://api.github.com/repos/${GH_REPO}/contents/${path}?ref=${GH_BRANCH}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${GH_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'zhunshi-bot'
+    },
+    body: body ? JSON.stringify(body) : undefined
   });
-  return await res.json();
+  return res;
 }
 
-const mem = { 'zsyx:users': [], 'zsyx:jobs': [], 'zsyx:apps': [], 'zsyx:favs': [], vals: {} };
+async function readData() {
+  if (!HAS_GH) return memStore;
+  try {
+    const res = await ghApi('GET', DATA_PATH);
+    if (res.status === 404) return { users: [], jobs: [], apps: [], favs: [], seeded: false, seq: 0 };
+    if (!res.ok) throw new Error('read ' + res.status);
+    const meta = await res.json();
+    const content = JSON.parse(Buffer.from(meta.content, 'base64').toString('utf8'));
+    return content;
+  } catch (e) {
+    return { users: [], jobs: [], apps: [], favs: [], seeded: false, seq: 0 };
+  }
+}
 
-async function getList(key) {
-  if (HAS_KV) {
-    const r = await kvCmd(['LRANGE', key, '0', '-1']);
-    return (r.result || []).map(s => JSON.parse(s));
-  }
-  return mem[key] || [];
+async function writeData(data) {
+  if (!HAS_GH) { memStore = data; return; }
+  // 取当前文件 sha（更新用）
+  let sha = undefined;
+  const cur = await ghApi('GET', DATA_PATH);
+  if (cur.ok) { const m = await cur.json(); sha = m.sha; }
+  const body = {
+    message: 'update data.json via zhunshi api',
+    content: Buffer.from(JSON.stringify(data, null, 2)).toString('base64'),
+    branch: GH_BRANCH
+  };
+  if (sha) body.sha = sha;
+  const res = await ghApi('PUT', DATA_PATH, body);
+  if (!res.ok) throw new Error('write ' + res.status);
 }
-async function setList(key, arr) {
-  if (HAS_KV) {
-    await kvCmd(['DEL', key]);
-    if (arr.length) {
-      const args = ['RPUSH', key, ...arr.map(a => JSON.stringify(a))];
-      await kvCmd(args);
-    }
-    return;
-  }
-  mem[key] = arr;
-}
-async function getValue(key) {
-  if (HAS_KV) {
-    const r = await kvCmd(['GET', key]);
-    return r.result ? JSON.parse(r.result) : null;
-  }
-  return mem.vals[key] ?? null;
-}
-async function setValue(key, val) {
-  if (HAS_KV) { await kvCmd(['SET', key, JSON.stringify(val)]); return; }
-  mem.vals[key] = val;
+
+const memStore = { users: [], jobs: [], apps: [], favs: [], seeded: false, seq: 0 };
+// 写操作时串行化，避免并发覆盖
+let writeChain = Promise.resolve();
+
+async function withWrite(fn) {
+  writeChain = writeChain.then(async () => {
+    const data = await readData();
+    const result = await fn(data);
+    await writeData(data);
+    return result;
+  });
+  return writeChain;
 }
 
 export const db = {
-  get HAS_KV() { return HAS_KV; },
-  async getUsers() { return await getList('zsyx:users'); },
-  async saveUsers(u) { await setList('zsyx:users', u); },
-  async getJobs() { return await getList('zsyx:jobs'); },
-  async saveJobs(j) { await setList('zsyx:jobs', j); },
-  async getApps() { return await getList('zsyx:apps'); },
-  async saveApps(a) { await setList('zsyx:apps', a); },
-  async getFavs() { return await getList('zsyx:favs'); },
-  async saveFavs(f) { await setList('zsyx:favs', f); },
-  async getSeeded() { return await getValue('zsyx:seeded'); },
-  async setSeeded(v) { await setValue('zsyx:seeded', v); },
+  get HAS_GH() { return HAS_GH; },
+  async getUsers() { const d = await readData(); return d.users; },
+  async saveUsers(u) { await withWrite(d => { d.users = u; }); },
+  async getJobs() { const d = await readData(); return d.jobs; },
+  async saveJobs(j) { await withWrite(d => { d.jobs = j; }); },
+  async getApps() { const d = await readData(); return d.apps; },
+  async saveApps(a) { await withWrite(d => { d.apps = a; }); },
+  async getFavs() { const d = await readData(); return d.favs; },
+  async saveFavs(f) { await withWrite(d => { d.favs = f; }); },
+  async getSeeded() { const d = await readData(); return d.seeded; },
+  async setSeeded(v) { await withWrite(d => { d.seeded = v; }); },
   async nextId(prefix) {
-    const n = (await getValue(prefix + ':seq')) || 0;
-    const v = n + 1;
-    await setValue(prefix + ':seq', v);
-    return prefix + v;
+    let id;
+    await withWrite(d => { d.seq = (d.seq || 0) + 1; id = prefix + d.seq; });
+    return id;
   }
 };
